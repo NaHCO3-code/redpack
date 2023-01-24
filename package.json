@@ -1,0 +1,18 @@
+{
+  "name": "redpackChess",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/cors": "^8.2.0",
+    "@fastify/swagger": "^8.3.0",
+    "@fastify/swagger-ui": "^1.3.0",
+    "@fastify/websocket": "^7.1.2",
+    "fastify": "^4.12.0",
+    "mongoose": "^6.8.4",
+    "nodemon": "^2.0.20"
+  },
+  "scripts": {
+    "dev": "node ./node_modules/nodemon/bin/nodemon.js index.js"
+  }
+}

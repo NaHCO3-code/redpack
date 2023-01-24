@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>抢红包大作战</title>
+</head>
+<body>
+  <div id="map">
+    <!-- <div class="player" style="--x: 0; --y: 0"></div> -->
+  </div>
+  <div id="control">
+    <h2>抢红包demo</h2>
+    <br/><hr/>
+    <p>服务器</p>
+    <input id="username" placeholder="用户名"/>
+    <input id="password" type="password" placeholder="密码"/>
+    <input id="server" value="ws://127.0.0.1:3000/api/ws/"/>
+    <button onclick="connect(document.querySelector('#server').value)">连接</button>
+    <br/><hr>
+    <p>规则</p>
+    <br/><hr/>
+    <p>消息</p>
+    <div id="infos"></div>
+  </div>
+</body>
+<style>
+  *{
+    margin: 0;
+    padding: 0;
+  }
+  body{
+    height: 100vh;
+    width: 100vw;
+    background-color: #bd4333;
+  }
+  #map{
+    height: 100%;
+    width: 100%;
+    display: grid;
+    grid-template: repeat(auto-fill, 30px) / repeat(auto-fill, 30px);
+  }
+  #map div{
+    transition: all 2s cubic-bezier(0.075, 0.82, 0.165, 1);
+  }
+  #map .player {
+    border: 2px solid #000;
+    grid-area: var(--x) / var(--y);
+  }
+  #control {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 300px;
+    background-color: #70707086;
+  }
+  #infos{
+    height: 100%;
+    overflow-y: scroll;
+  }
+</style>
+<script>
+  let ws = void 0
+  let players = []
+  function connect(url){
+    let username = document.querySelector('#username').value
+    let password = document.querySelector('#password').value
+    ws = new WebSocket(url+`?name=${username}&password=${password}`)
+    info("connecting")
+    ws.onopen = function(e){
+      info("connected!")
+    }
+    ws.onclose = function(e){
+      warn("failed/closed")
+    }
+    ws.onmessage = function(e){
+      let data = JSON.parse(e.data)
+      if(data.type=='info'){
+        info(data.from + ': ' + data.context)
+      }
+      if(data.type == 'datachange'){
+        players[players.findIndex(v=>v.name==data.name)].x = data.x;
+        players[players.findIndex(v=>v.name==data.name)].y = data.y;
+        console.log(getself().x, getself().y)
+        show(getself().x, getself().y)
+      }
+      if(data.type == 'io'){
+        players.push(data.data)
+        show(getself().x, getself().y)
+      }
+    }
+  }
+  function info(info){
+    document.querySelector('#infos').innerHTML = `<p style="color: #33bd3f;">${info}</p>`+document.querySelector('#infos').innerHTML
+  }
+  function warn(info){
+    document.querySelector('#infos').innerHTML = `<p style="color: #bda833;">${info}</p>`+document.querySelector('#infos').innerHTML
+  }
+  function getself(){
+    return players.find(v=>document.querySelector('#username').value==v.name)
+  }
+  function sendDataChange(){
+    ws.send(JSON.stringify({
+      type: "datachange",
+      ...getself()
+    }))
+  }
+  function move(selector, x, y){
+    document.querySelectorAll(selector).forEach((node)=>{
+      node.style.cssText = `--x: ${x}; --y: ${y};`
+    })
+  }
+
+  
+  function show(cameraX, cameraY){
+    let vh = window.innerHeight / 30
+    let vw = window.innerWidth / 30
+    let view = document.querySelector('#map')
+    players.forEach((v) => {
+      //超出可见区域不渲染
+      if(
+        Math.abs(v.x - cameraX) > vw/2 
+        || Math.abs(v.y - cameraY) > vh/2
+      ){
+        return
+      }
+      view.innerHTML += `<div class="player" id="player${v.name}" style="--x: 0; --y: 0">${v.name}</div>`
+      move(`#player${v.name}`, Math.floor(vh/2-v.y+cameraY), Math.floor(vw/2+v.x-cameraX))
+    })
+  }
+
+
+  document.onkeypress = function(k){
+    if(event.keyCode == 119){
+      getself().y += 1
+      sendDataChange()
+    }
+    if(event.keyCode == 115){
+      getself().y -= 1
+      sendDataChange()
+    }
+    if(event.keyCode == 100){
+      getself().x += 1
+      sendDataChange()
+    }
+    if(event.keyCode == 97){
+      getself().x -= 1
+      sendDataChange()
+    }
+  }
+</script>
+</html>

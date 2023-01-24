@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>抢红包大作战</title>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="control">
+    <h2>抢红包demo</h2>
+    <br/><hr/>
+    <p>服务器</p>
+    <input id="username" placeholder="用户名"/>
+    <input id="password" type="password" placeholder="密码"/>
+    <button onclick="register()">注册</button>
+    <input id="server" value="ws://127.0.0.1:3000/api/ws/"/>
+    <button onclick="connect()">连接</button>
+    <br/><hr>
+    <p>规则</p>
+    <p>wsad移动</p>
+    <br/><hr/>
+    <p>消息</p>
+    <input id="msg" placeholder="hello world!"/>
+    <button onclick="message()">发送</button>
+    <div id="infos"></div>
+  </div>
+</body>
+<style>
+  *{
+    margin: 0;
+    padding: 0;
+  }
+  body{
+    height: 100vh;
+    width: 100vw;
+    background-color: #bd4333;
+  }
+  #map{
+    height: 100%;
+    width: 100%;
+    display: grid;
+    grid-template: repeat(auto-fill, 30px) / repeat(auto-fill, 30px);
+  }
+  #map div{
+    transition: all 2s cubic-bezier(0.075, 0.82, 0.165, 1);
+  }
+  #map .player {
+    border: 2px solid #000;
+    grid-area: var(--x) / var(--y);
+  }
+  #control {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 300px;
+    background-color: #70707086;
+  }
+  #infos{
+    height: 100%;
+    overflow-y: scroll;
+  }
+</style>
+<script>
+  let ws = void 0
+  let players = {}
+  function connect(){
+    let url = document.querySelector('#server').value
+    let username = document.querySelector('#username').value
+    let password = document.querySelector('#password').value
+    ws = new WebSocket(url+`?name=${username}&password=${password}`)
+    info("connecting")
+    ws.onopen = function(e){
+      info("connected!")
+    }
+    ws.onclose = function(e){
+      warn("failed/closed")
+    }
+    ws.onmessage = function(e){
+      let data = JSON.parse(e.data)
+      if(data.type == 'info'){
+        info(`${data.from}: ${data.context}`)
+        if(data.context.includes('进入')){
+          sendDataChange()
+        }
+      }
+      if(data.type == 'datachange'){
+        players[data.name] = {
+          name: data.name,
+          x: data.x,
+          y: data.y,
+        }
+        show(getself().x, getself().y)
+      }
+    }
+  }
+  function info(info){
+    document.querySelector('#infos').innerHTML = `<p style="color: #33bd3f;">${info}</p>`+document.querySelector('#infos').innerHTML
+  }
+  function warn(info){
+    document.querySelector('#infos').innerHTML = `<p style="color: #bda833;">${info}</p>`+document.querySelector('#infos').innerHTML
+  }
+  function move(selector, x, y){
+    document.querySelectorAll(selector).forEach((node)=>{
+      node.style.cssText = `--x: ${x}; --y: ${y};`
+    })
+  }
+  function show(cameraX, cameraY){
+    let vh = window.innerHeight / 30
+    let vw = window.innerWidth / 30
+    let view = document.querySelector('#map')
+    Object.values(players).forEach((v) => {
+      //超出可见区域不渲染
+      if(
+        Math.abs(v.x - cameraX) > vw/2 
+        || Math.abs(v.y - cameraY) > vh/2
+      ){
+        return
+      }
+      view.innerHTML += `<div class="player" id="player${v.name}" style="--x: 0; --y: 0">${v.name}</div>`
+      move(`#player${v.name}`, Math.floor(vh/2-v.y+cameraY), Math.floor(vw/2+v.x-cameraX))
+    })
+  }
+  function getself(){
+    return players[document.querySelector('#username').value]
+  }
+  function sendDataChange(){
+    ws.send(JSON.stringify({
+      type: 'datachange',
+      name: getself().name,
+      x: getself().x,
+      y: getself().y,
+    }))
+  }
+
+
+  document.onkeypress = function(k){
+    if(event.keyCode == 119){
+      getself().y += 1
+      sendDataChange()
+    }
+    if(event.keyCode == 115){
+      getself().y -= 1
+      sendDataChange()
+    }
+    if(event.keyCode == 100){
+      getself().x += 1
+      sendDataChange()
+    }
+    if(event.keyCode == 97){
+      getself().x -= 1
+      sendDataChange()
+    }
+  }
+
+
+
+  function message(){
+    let msg = document.querySelector('#msg').value
+    ws.send(JSON.stringify({
+      type: 'message',
+      context: msg,
+    }))
+  }
+  function register(){
+    let url = document.querySelector('#server').value
+    let username = document.querySelector('#username').value
+    let password = document.querySelector('#password').value
+    info("正在发送请求")
+    fetch(`api/user/addUser?name=${username}&email=${"awa"}&password=${password}&coin=1`, {method: 'POST'})
+      .then(d=>d.json())
+      .then(d=>{
+        if(d.statusCode == 500){
+          warn(JSON.stringify(d))
+          warn("注册失败")
+          return
+        }
+        info(JSON.stringify(d))
+        info("注册成功")
+      })
+  }
+</script>
+</html>
